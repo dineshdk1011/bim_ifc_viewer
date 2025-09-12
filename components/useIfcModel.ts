@@ -1,4 +1,4 @@
-'use client'
+"use client";
 
 import { useCallback, useRef, useState } from 'react'
 import * as THREE from 'three'
@@ -23,6 +23,8 @@ export type IfcStore = {
   pickAt: (coords: { x: number; y: number }, camera: THREE.Camera) => Promise<{ id: number; props: any } | null>
 }
 
+const BASE_ID = 'BASE_VISIBLE'
+
 export function useIfcModel(): IfcStore {
   const sceneRef = useRef<THREE.Scene | null>(null)
   const rootGroupRef = useRef<THREE.Object3D | null>(null)
@@ -32,6 +34,12 @@ export function useIfcModel(): IfcStore {
   const [items, setItems] = useState<IfcItem[]>([])
   const [ready, setReady] = useState(false)
   const [lastPicked, setLastPicked] = useState<{ id: number; name?: string; type?: string } | null>(null)
+
+  // NEW: base-subset state
+  const baseMatRef = useRef<THREE.Material | null>(null)
+  const baseActiveRef = useRef<boolean>(false)
+  const allIdsRef = useRef<number[]>([])
+  const hiddenRef = useRef<Set<number>>(new Set())
 
   const init = useCallback((scene: THREE.Scene) => {
     sceneRef.current = scene
@@ -48,13 +56,27 @@ export function useIfcModel(): IfcStore {
   }, [])
 
   const disposePrevious = useCallback(() => {
-    if (!sceneRef.current || !rootGroupRef.current) return
-    sceneRef.current.remove(rootGroupRef.current)
-    rootGroupRef.current.traverse((obj) => {
-      const mesh = obj as THREE.Mesh
-      if ((mesh as any).isMesh) mesh.geometry?.dispose?.()
-    })
+    const mgr: any = loaderRef.current?.ifcManager
+    if (modelIDRef.current && mgr) {
+      try { mgr.removeSubset(modelIDRef.current, undefined, BASE_ID) } catch {}
+    }
+
+    if (sceneRef.current && rootGroupRef.current) {
+      sceneRef.current.remove(rootGroupRef.current)
+      rootGroupRef.current.traverse((obj) => {
+        const mesh = obj as THREE.Mesh
+        if ((mesh as any).isMesh) {
+          mesh.geometry?.dispose?.()
+          const m = mesh.material as any
+          m?.dispose?.()
+        }
+      })
+    }
     rootGroupRef.current = null
+    baseMatRef.current = null
+    baseActiveRef.current = false
+    allIdsRef.current = []
+    hiddenRef.current.clear()
     setItems([])
     setLastPicked(null)
   }, [])
@@ -107,6 +129,24 @@ export function useIfcModel(): IfcStore {
     setItems(rows)
   }, [])
 
+  // NEW: rebuild the base subset from (allIds - hidden)
+  const rebuildBaseSubset = useCallback(() => {
+    if (!loaderRef.current || !sceneRef.current) return
+    const mgr: any = loaderRef.current.ifcManager
+    const modelID = modelIDRef.current
+    if (modelID == null || !baseMatRef.current) return
+
+    const visibleIds = allIdsRef.current.filter(id => !hiddenRef.current.has(id))
+    mgr.createSubset({
+      modelID,
+      ids: visibleIds,
+      material: baseMatRef.current,
+      scene: sceneRef.current,
+      removePrevious: true,
+      customID: BASE_ID,
+    })
+  }, [])
+
   const loadFile = useCallback(async (file: File) => {
     if (!loaderRef.current || !sceneRef.current) return
     disposePrevious()
@@ -123,40 +163,79 @@ export function useIfcModel(): IfcStore {
       const models = mgr?.models ?? []
       modelIDRef.current = models[0]?.modelID ?? 0
 
+      // --- gather all IDs that have geometry (prefer Representation) ---
+      const ids: number[] = []
+      try {
+        const all = await mgr.getAllItemsOfType(modelIDRef.current, null, true)
+        if (Array.isArray(all)) {
+          for (const it of all) if (it?.Representation) ids.push(it.expressID)
+        }
+      } catch {
+        // (ok, we'll just keep ids empty and let fallback handle)
+      }
+
+      allIdsRef.current = ids
+
+      // If we found any IDs, build the base subset and hide original mesh
+      if (ids.length > 0) {
+        baseMatRef.current = new THREE.MeshPhongMaterial({ color: 0xffffff })
+        baseActiveRef.current = true
+        rebuildBaseSubset()
+        // hide original IFC meshes so only subsets draw
+        rootGroupRef.current.traverse(o => ((o as any).visible = false))
+      } else {
+        // keep original mesh visible; base subset flow is inactive
+        baseActiveRef.current = false
+      }
+
       await buildIndex()
     } finally {
       URL.revokeObjectURL(url)
     }
-  }, [disposePrevious, buildIndex])
+  }, [disposePrevious, buildIndex, rebuildBaseSubset])
 
+  // ►► ONLY THIS PART IS WHAT YOUR BUTTONS CALL
   const setVisible = useCallback((id: number, visible: boolean) => {
-    if (!loaderRef.current) return
+    if (!loaderRef.current || !sceneRef.current) return
     const mgr: any = loaderRef.current.ifcManager
+    const modelID = modelIDRef.current
+    if (modelID == null) return
+
+    if (baseActiveRef.current) {
+      // maintain hidden set then rebuild base subset
+      if (visible) hiddenRef.current.delete(id)
+      else hiddenRef.current.add(id)
+      try { rebuildBaseSubset() } catch (e) { console.warn('rebuild failed', e) }
+      return
+    }
+
+    // Fallback: per-ID hidden subset (keeps original mesh visible)
     try {
-      if (mgr?.ifcAPI?.ToggleItemsVisibility) {
-        mgr.ifcAPI.ToggleItemsVisibility(modelIDRef.current, [id], !!visible)
-      } else if (sceneRef.current) {
-        // subset fallback
-        if (!visible) {
-          const mat = new THREE.MeshBasicMaterial({ visible: false })
-          mgr.createSubset({ modelID: modelIDRef.current, ids: [id], material: mat, scene: sceneRef.current, removePrevious: false })
-        } else {
-          const tmp = new THREE.MeshBasicMaterial({ visible: true })
-          try {
-            mgr.createSubset({ modelID: modelIDRef.current, ids: [id], material: tmp, scene: sceneRef.current, removePrevious: true })
-            mgr.removeSubset(modelIDRef.current, tmp)
-          } finally { tmp.dispose() }
-        }
+      if (!visible) {
+        const mat = new THREE.MeshBasicMaterial({ visible: false })
+        mgr.createSubset({
+          modelID,
+          ids: [id],
+          material: mat,
+          scene: sceneRef.current,
+          removePrevious: true,
+          customID: `HIDE_${id}`,
+        })
+      } else {
+        try { mgr.removeSubset(modelID, undefined, `HIDE_${id}`) } catch {}
       }
     } catch (e) {
-      console.warn('Visibility toggle failed', e)
+      const msg = String((e as any)?.message || e)
+      if (!msg.includes('Model without geometry')) {
+        console.warn('Visibility toggle failed', e)
+      }
     }
-  }, [])
+  }, [rebuildBaseSubset])
 
   const blink = useCallback(async (id: number, durationMs = 1500) => {
     if (!loaderRef.current || !sceneRef.current) return
     const mgr: any = loaderRef.current.ifcManager
-    const mat = new THREE.MeshBasicMaterial({ color: 0xff0000 })
+    const mat = new THREE.MeshBasicMaterial({ color: 0xff0000, transparent: true, opacity: 0.45, depthWrite: false })
     try {
       mgr.createSubset({ modelID: modelIDRef.current, ids: [id], material: mat, scene: sceneRef.current, removePrevious: true })
       await new Promise((r) => setTimeout(r, durationMs))
