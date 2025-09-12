@@ -1,37 +1,37 @@
 {
-  "name": "bim-viewer",
-  "version": "0.1.0",
+  "name": "bim-ifc-viewer",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "postinstall": "node scripts/copy-wasm.js"
-  },
-  "overrides": {
-    "three": "0.152.2",
-    "web-ifc": "0.0.47",
-    "web-ifc-three": "0.0.117",
-    "web-ifc-viewer": "1.0.206"
+    "lint": "next lint"
   },
   "dependencies": {
-    "next": "15.5.2",
-    "react": "19.1.0",
-    "react-dom": "19.1.0",
-    "three": "0.152.2",
-    "web-ifc": "0.0.47",
-    "web-ifc-three": "0.0.117",
-    "web-ifc-viewer": "1.0.206"
+    "@react-three/drei": "^9.122.0",
+    "@react-three/fiber": "8.15.14",
+    "clsx": "2.1.1",
+    "next": "^14.2.32",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "three": "0.149.0",
+    "three-stdlib": "2.23.9",
+    "web-ifc": "0.0.70",
+    "web-ifc-three": "0.0.117"
   },
   "devDependencies": {
-    "@eslint/eslintrc": "^3",
-    "@tailwindcss/postcss": "^4",
-    "@types/node": "^20",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "eslint": "^9",
-    "eslint-config-next": "15.5.2",
-    "tailwindcss": "^4",
-    "typescript": "^5"
+    "@types/node": "20.12.12",
+    "@types/three": "0.149.0",
+    "autoprefixer": "10.4.20",
+    "eslint": "8.57.0",
+    "eslint-config-next": "14.2.7",
+    "postcss": "8.4.41",
+    "tailwindcss": "3.4.10",
+    "typescript": "5.5.4"
+  },
+  "overrides": {
+    "three-mesh-bvh": "0.6.7",
+    "three": "0.149.0",
+    "web-ifc": "0.0.70"
   }
 }

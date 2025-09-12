@@ -1,36 +1,54 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# BIM IFC Viewer (Next.js + TypeScript)
+
+A minimal BIM IFC viewer with:
+- Load local `.ifc`
+- 3D controls (orbit / pan / zoom)
+- Component list with show / hide
+- Highlight (blink red) per component
+- Optional metadata on click (HUD)
+- Responsive UI, error states
+- No backend required
+
+## Tech
+Next.js 14 (App Router) + TypeScript, TailwindCSS, React Three Fiber (`@react-three/fiber`), `@react-three/drei`, IFC.js (`web-ifc` + `web-ifc-three`).
 
 ## Getting Started
-
-First, run the development server:
-
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+# install deps
+npm i    # or: npm i / yarn
+
+# run dev
+npm dev  # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Build
+```bash
+npm build && npm start
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Deploy (Vercel)
+1. Push to GitHub.
+2. Import repo on vercel.com → Framework: **Next.js** → Deploy.
+3. No environment variables required.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Notes
+- WASM files for `web-ifc` are loaded from `/` (public). Next serves `/public` at the app root.
+- Tested with React 18 / Next 14 / Three r160.
 
-## Learn More
+## Shortcuts (optional ideas)
+- Press **H** to re-highlight last selection, etc. (not implemented by default)
 
-To learn more about Next.js, take a look at the following resources:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Troubleshooting (Windows / npm)
+If you see an error like `BatchedMesh is not exported from 'three'`, ensure you are using the pinned versions in `package.json` (Three 0.149 + three-stdlib 2.23.9 + three-mesh-bvh 0.6.10).
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+If install gets stuck, delete `node_modules` and `package-lock.json`, then run:
+```
+npm install
+npm run dev
+```
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+This project copies IFC WASM/worker files on `postinstall` to `public/ifc/`. If you run into WASM path issues, verify those files exist and that `useIfcModel.ts` calls:
+```ts
+loader.ifcManager.setWasmPath('/ifc/')
+```
