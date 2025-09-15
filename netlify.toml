@@ -1,0 +1,16 @@
+[build]
+  command = "npm run build"
+  publish = "out"
+
+# Serve WASM correctly & cache it well
+[[headers]]
+  for = "/ifc/*"
+  [headers.values]
+    Content-Type = "application/wasm"
+    Cache-Control = "public, max-age=31536000, immutable"
+
+# SPA-style routing (optional, if you rely on client-side routes)
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
