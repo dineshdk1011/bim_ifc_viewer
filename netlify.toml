@@ -1,16 +1,22 @@
 [build]
-  command = "npm run build"
-  publish = "out"
+  # If static export:
+  # command = "npm run build"
+  # publish = "out"
 
-# Serve WASM correctly & cache it well
+  # If SSR with plugin:
+  # command = "npm run build"
+  # publish = ".next"
+
+# Serve .wasm with the correct type and cache strongly
 [[headers]]
-  for = "/ifc/*"
+  for = "/ifc/*.wasm"
   [headers.values]
     Content-Type = "application/wasm"
     Cache-Control = "public, max-age=31536000, immutable"
 
-# SPA-style routing (optional, if you rely on client-side routes)
+# If you added a SPA catch-all redirect earlier, make sure /ifc/* is NOT swallowed by it.
+# This rule is a safe no-op that protects the path from being rewritten.
 [[redirects]]
-  from = "/*"
-  to = "/index.html"
+  from = "/ifc/*"
+  to = "/ifc/:splat"
   status = 200
