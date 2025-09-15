@@ -2,10 +2,15 @@
   "name": "bim-ifc-viewer",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "next lint"
+    {
+      "scripts": {
+        "dev": "next dev",
+        "build": "next build",
+        "start": "next start",
+        "lint": "next lint",
+        "postinstall": "node scripts/copy-wasm.js"
+      }
+    }
   },
   "dependencies": {
     "@react-three/drei": "^9.122.0",
