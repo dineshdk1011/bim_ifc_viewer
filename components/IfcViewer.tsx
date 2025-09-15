@@ -3,8 +3,11 @@ import { Canvas } from "@react-three/fiber";
 import { OrbitControls, Html } from "@react-three/drei";
 import { useEffect, useMemo, useState } from "react";
 import { useIfc } from "./IfcContext";
+import { IFCLoader } from "web-ifc-three/IFCLoader";
 
 export default function IfcViewer({ file }: { file: File | null }) {
+  const ifcLoader = new IFCLoader();
+  ifcLoader.ifcManager.setWasmPath("/ifc/");
   const { ready, init, loadFile } = useIfc();
 
   return (
