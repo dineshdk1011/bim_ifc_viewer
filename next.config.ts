@@ -18,8 +18,11 @@ const nextConfig: NextConfig = {
     
     return config;
   },
-  // Enable static exports if needed
-  output: 'standalone',
+  
+  output: 'export',
+
+  // If you use next/image anywhere, you need this for static export
+  images: { unoptimized: true },
 };
 
 export default nextConfig;
